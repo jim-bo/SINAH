@@ -1,11 +1,10 @@
-// hdf5.
-#include "hdf5.h"
-#include "hdf5_hl.h"
-
-using namespace std;
-
 #ifndef TYPES_H_INCLUDED
 #define TYPES_H_INCLUDED
+
+// necessary libraries.
+#include "hdf5.h"
+#include "hdf5_hl.h"
+using namespace std;
 
 #define AGP_TABLE_NAME "AgpTable"
 #define AGP_NFIELDS  (hsize_t)  10

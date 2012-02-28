@@ -16,13 +16,10 @@
 #include <google/sparse_hash_set>
 
 // hdf5
-//#include "types.h"
+#include "types.h"
 
 // OGDF
 #include "OGDF.h"
-
-// bundle graph.
-#include "BundleGraph.h"
 
 // bundle graph.
 #include "BundleGraph.h"

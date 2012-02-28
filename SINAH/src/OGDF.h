@@ -13,6 +13,7 @@
 #include <ogdf/basic/simple_graph_alg.h>
 #include <ogdf/decomposition/BCTree.h>
 #include <ogdf/decomposition/StaticSPQRTree.h>
+#include <ogdf/basic/HashArray.h>
 
 
 #endif /* OGDF_H_ */
