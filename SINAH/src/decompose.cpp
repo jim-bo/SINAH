@@ -5,11 +5,16 @@
  *      Author: jlindsay
  */
 
+// header
+#include "decompose.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+// namespaces
+using namespace std;
+using google::sparse_hash_map;
+using google::sparse_hash_set;
+
 
 int main(void) {
-	puts("CHEESY BAGEL");
+
 	return EXIT_SUCCESS;
 }

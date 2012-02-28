@@ -1,0 +1,18 @@
+/*
+ * OGDF.h
+ *
+ *  Created on: Feb 27, 2012
+ *      Author: jlindsay
+ */
+
+#ifndef OGDF_H_
+#define OGDF_H_
+
+#include <ogdf/basic/Graph.h>
+#include <ogdf/basic/GraphAttributes.h>
+#include <ogdf/basic/simple_graph_alg.h>
+#include <ogdf/decomposition/BCTree.h>
+#include <ogdf/decomposition/StaticSPQRTree.h>
+
+
+#endif /* OGDF_H_ */

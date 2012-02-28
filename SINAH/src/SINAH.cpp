@@ -5,8 +5,7 @@
  *      Author: jlindsay
  */
 
-#include <stdio.h>
-#include <stdlib.h>
+#include "SINAH.h"
 
 int main(void) {
 	puts("Hello World!!!");

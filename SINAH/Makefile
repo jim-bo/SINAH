@@ -4,15 +4,20 @@ SOURCE =	src
 
 OUTPUT =	bin
 
-LIBS =
+LIB_DIRS =	/usr/lib
+
+LIBS = 		hdf5 hdf5_hl
+
+LDFLAGS += $(foreach librarydir,$(LIB_DIRS),-L$(librarydir))
+LDFLAGS += $(foreach library,$(LIBS),-l$(library))
 
 all:	SINAH decompose
 
 SINAH:	$(SOURCE)/SINAH.o
-	$(CXX) -o $(OUTPUT)/SINAH $(SOURCE)/SINAH.o $(LIBS)
+	$(CXX) -o $(OUTPUT)/SINAH $(SOURCE)/SINAH.o $(LDFLAGS)
 	
 decompose:	$(SOURCE)/decompose.o
-	$(CXX) -o $(OUTPUT)/decompose $(SOURCE)/decompose.o $(LIBS)
+	$(CXX) -o $(OUTPUT)/decompose $(SOURCE)/decompose.o $(LDFLAGS)
 
 
 
