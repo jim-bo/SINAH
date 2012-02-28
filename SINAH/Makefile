@@ -1,19 +1,20 @@
 CXXFLAGS =	-O2 -g -Wall -fmessage-length=0
 
-OBJS =		SINAH.o
-
-LIBS =
-
-TARGET =	SINAH
-
 SOURCE =	src
 
 OUTPUT =	bin
 
-$(TARGET):	$(SOURCE)/$(OBJS)
-	$(CXX) -o $(OUTPUT)/$(TARGET) $(SOURCE)/$(OBJS) $(LIBS)
+LIBS =
 
-all:	$(TARGET)
+all:	SINAH decompose
+
+SINAH:	$(SOURCE)/SINAH.o
+	$(CXX) -o $(OUTPUT)/SINAH $(SOURCE)/SINAH.o $(LIBS)
+	
+decompose:	$(SOURCE)/decompose.o
+	$(CXX) -o $(OUTPUT)/decompose $(SOURCE)/decompose.o $(LIBS)
+
+
 
 clean:
 	rm -f $(OBJS) $(TARGET)
