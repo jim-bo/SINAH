@@ -21,4 +21,7 @@
 // OGDF
 #include "OGDF.h"
 
+// bundle graph.
+#include "BundleGraph.h"
+
 #endif /* DECOMPOSE_H_ */
