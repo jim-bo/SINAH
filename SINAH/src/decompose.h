@@ -18,4 +18,7 @@
 // hdf5
 #include "types.h"
 
+// bundle graph.
+#include "BundleGraph.h"
+
 #endif /* DECOMPOSE_H_ */

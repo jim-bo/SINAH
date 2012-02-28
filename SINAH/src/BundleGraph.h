@@ -5,6 +5,9 @@
  *      Author: jlindsay
  */
 
+// include master.
+#include "SINAH.h"
+
 // include OGDF
 #include "OGDF.h"
 
