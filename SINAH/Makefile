@@ -4,12 +4,20 @@ SOURCE =	src
 
 OUTPUT =	bin
 
-LIB_DIRS =	/usr/lib
+LIB_DIRS =	/usr/lib /usr/local/lib
 
-LIBS = 		hdf5 hdf5_hl OGDF pthread
+LIBS = 		hdf5 hdf5_hl OGDF
 
 LDFLAGS += $(foreach librarydir,$(LIB_DIRS),-L$(librarydir))
 LDFLAGS += $(foreach library,$(LIBS),-l$(library))
+
+#INC_DIRS = 	/opt/OGDF/_release/
+
+#INCS = 		OGDF
+
+#INCFLAGS += $(foreach librarydir,$(INC_DIRS),-I$(librarydir))
+#INCFLAGS += $(foreach library,$(INCS),-include$(library))
+
 
 all:	SINAH decompose
 
@@ -18,7 +26,6 @@ SINAH:	$(SOURCE)/SINAH.o
 	
 decompose:	$(SOURCE)/decompose.o
 	$(CXX) -o $(OUTPUT)/decompose $(SOURCE)/decompose.o $(LDFLAGS)
-
 
 
 clean:
