@@ -6,7 +6,7 @@ OUTPUT =	bin
 
 LIB_DIRS =	/usr/lib
 
-LIBS = 		hdf5 hdf5_hl
+LIBS = 		hdf5 hdf5_hl OGDF pthread
 
 LDFLAGS += $(foreach librarydir,$(LIB_DIRS),-L$(librarydir))
 LDFLAGS += $(foreach library,$(LIBS),-l$(library))

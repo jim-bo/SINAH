@@ -8,13 +8,18 @@
 // header
 #include "decompose.h"
 
+
 // namespaces
 using namespace std;
+using namespace ogdf;
 using google::sparse_hash_map;
 using google::sparse_hash_set;
 
 
 int main(void) {
+
+
+	ogdf::Graph g;
 
 	return EXIT_SUCCESS;
 }
