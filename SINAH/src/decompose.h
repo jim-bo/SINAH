@@ -55,7 +55,8 @@ typedef struct Decomposition {
 // decomposition functions.
 void zero_decomp(BundleGraph BG, Decomposition * decomp);
 void one_decomp(BundleGraph BG, Decomposition * decomp);
-void two_decomp(BundleGraph BG, Decomposition * decomp);
+//void two_decomp(BundleGraph BG, Decomposition * decomp);
+void two_decomp(BundleGraph BG, NodePair np, BundlePair bp, Decomposition * decomp);
 
 // ancillary functions.
 void verify_connected(NodePair np, BundlePair bp, Decomposition decomp);

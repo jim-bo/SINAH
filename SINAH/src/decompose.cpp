@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
 				BundleGraph subg1(np, bp, decomp.decomps[i].decomps[j].node_set);
 
 				// execute one decomposition.
-				two_decomp(subg1, &decomp.decomps[i].decomps[j]);
+				two_decomp(subg1, np, bp, &decomp.decomps[i].decomps[j]);
 
 				// verify one decomposition.
 				verify_connected(np, bp, decomp.decomps[i].decomps[j]);
@@ -233,7 +233,7 @@ void one_decomp(BundleGraph BG, Decomposition * decomp){
 }
 
 // two decomposition.
-void two_decomp(BundleGraph BG, Decomposition * decomp){
+void two_decomp(BundleGraph BG, NodePair np, BundlePair bp, Decomposition * decomp){
 
 	// announce.
 	WRITE_OUT("executing two decomposition\n");
@@ -286,6 +286,10 @@ void two_decomp(BundleGraph BG, Decomposition * decomp){
 			id1 = BG.n2idx[q];
 			decomp->decomps[idx].node_set.insert(id1);
 		}
+
+		cout << "harbles" << endl;
+		verify_connected(np, bp, decomp->decomps[idx]);
+
 
 		// increment index.
 		idx++;
