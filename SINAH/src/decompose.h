@@ -25,48 +25,10 @@
 // logging.
 #include "logging.h"
 
-// used to store intersections between decompositions.
-typedef struct Intersection {
-
-	// the type of intersection: 1, 2, 3+
-	int type;
-
-	// the two components involved in intersection.
-	int compa;
-	int compb;
-
-	// list of cut vertex.
-	std::vector<int> cuts;
-
-} Intersection;
-
-// used to store the decomposition.
-typedef struct Decomposition {
-
-	// the active node set.
-	NodeSet node_set;
-
-	// a vector of subsets.
-	std::vector<Decomposition> decomps;
-
-	// a vector of intersections.
-	std::vector<Intersection> inters;
-
-	// root of intersection if it can be rooted.
-	int root;
-} Decomposition;
-
-// used to store a result for return.
-typedef struct Result {
-	std::vector<Decomposition> decomps;
-	std::vector<Intersection> inters;
-	int root;
-} Result;
-
 struct DGVertex {
     int idx;
-	int gidx;
-	int nidx;
+    int stage;
+	google::sparse_hash_set<int> set;
 };
 
 struct DGEdge {
@@ -76,7 +38,7 @@ struct DGEdge {
 typedef boost::adjacency_list<  // adjacency_list is a template depending on :
     boost::listS,               //  The container used for egdes : here, std::list.
     boost::vecS,                //  The container used for vertices: here, std::vector.
-    boost::undirectedS,           //  directed or undirected edges ?.
+    boost::directedS,           //  directed or undirected edges ?.
     DGVertex,                     //  The type that describes a Vertex.
     DGEdge                        //  The type that describes an Edge
 > DecompGraph;
@@ -85,11 +47,11 @@ typedef DecompGraph::vertex_descriptor VertexID;
 typedef DecompGraph::edge_descriptor   EdgeID;
 
 // decomposition functions.
-void zero_decomp(BundleGraph BG, DecompGraph & DG, std::vector<DecompGraph> & VDG, std::vector<NodeSet> & VNS);
-void one_decomp(BundleGraph BG, DecompGraph & DG, std::vector<DecompGraph> & VDG, std::vector<NodeSet> & VNS);
-void two_decomp(BundleGraph BG, DecompGraph & DG, std::vector<DecompGraph> & VDG, std::vector<NodeSet> & VNS);
+void zero_decomp(BundleGraph BG, DecompGraph & DG);
+void one_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent);
+void two_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent);
 
 // ancillary functions.
-void verify_connected(NodePair np, BundlePair bp, DecompGraph decomp, std::vector<NodeSet> VNS);
+void verify_connected(NodePair np, BundlePair bp, DecompGraph decomp);
 
 #endif /* DECOMPOSE_H_ */
