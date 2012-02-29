@@ -15,6 +15,10 @@
 // hdf5
 #include "types.h"
 
+// boost BGL
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/visitors.hpp>
+
 // bundle graph.
 #include "BundleGraph.h"
 
@@ -52,13 +56,40 @@ typedef struct Decomposition {
 	int root;
 } Decomposition;
 
+// used to store a result for return.
+typedef struct Result {
+	std::vector<Decomposition> decomps;
+	std::vector<Intersection> inters;
+	int root;
+} Result;
+
+struct DGVertex {
+    int idx;
+	int gidx;
+	NodeSet set;
+};
+
+struct DGEdge {
+    std::vector<int> cuts;
+};
+
+typedef boost::adjacency_list<  // adjacency_list is a template depending on :
+    boost::listS,               //  The container used for egdes : here, std::list.
+    boost::vecS,                //  The container used for vertices: here, std::vector.
+    boost::undirectedS,           //  directed or undirected edges ?.
+    DGVertex,                     //  The type that describes a Vertex.
+    DGEdge                        //  The type that describes an Edge
+> DecompGraph;
+
+typedef DecompGraph::vertex_descriptor VertexID;
+typedef DecompGraph::edge_descriptor   EdgeID;
+
 // decomposition functions.
-void zero_decomp(BundleGraph BG, Decomposition * decomp);
-void one_decomp(BundleGraph BG, Decomposition * decomp);
-//void two_decomp(BundleGraph BG, Decomposition * decomp);
-void two_decomp(BundleGraph BG, NodePair np, BundlePair bp, Decomposition * decomp);
+void zero_decomp(BundleGraph BG, DecompGraph & DG, std::vector<DecompGraph> & VGD);
+void one_decomp(BundleGraph BG, DecompGraph & DG, std::vector<DecompGraph> & VGD);
+Result two_decomp(BundleGraph BG);
 
 // ancillary functions.
-void verify_connected(NodePair np, BundlePair bp, Decomposition decomp);
+void verify_connected(NodePair np, BundlePair bp, DecompGraph decomp);
 
 #endif /* DECOMPOSE_H_ */

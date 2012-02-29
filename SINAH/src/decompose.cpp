@@ -28,6 +28,10 @@ int main(int argc, char* argv[]) {
 	NodePair np = node_table_load(node_file);
 	BundlePair bp = bundle_table_load(bundle_file);
 
+	// create the decomposition object.
+	DecompGraph DG;
+	vector<DecompGraph> VDG;
+
 	// build initial node set.
 	NodeSet active;
 	for(hsize_t i=0; i<np.second; i++){
@@ -38,64 +42,71 @@ int main(int argc, char* argv[]) {
 	WRITE_OUT("creating initial graph\n");
 	BundleGraph BG(np, bp, active);
 
-	// create the initial singular decomp.
-	Decomposition decomp;
-	decomp.root = -1;
-	decomp.node_set = active;
-	decomp.decomps = vector<Decomposition>();
-	decomp.inters = vector<Intersection>();
-
 	// execute zero decomposition.
-	zero_decomp(BG, &decomp);
+	zero_decomp(BG, DG, VDG);
 
 	// verify zero decomposition.
-	verify_connected(np, bp, decomp);
+	verify_connected(np, bp, DG);
 
 	// digg deeper for 1 decomposition.
-	for(hsize_t i=0; i<decomp.decomps.size(); i++){
+	DecompGraph::vertex_iterator vertexIt, vertexEnd;
+	boost::tie(vertexIt, vertexEnd) = vertices(DG);
+	for (; vertexIt != vertexEnd; ++vertexIt){
+
+		// dereference vertexIt, get the ID
+	    VertexID vertexID = *vertexIt;
+
+	    // get the actual vertex.
+	    DGVertex & vertex1 = DG[vertexID];
 
 		// sanity bound.
-		if( decomp.decomps[i].node_set.size() < 4 ){
+		if( vertex1.set.size() < 4 ){
 			continue;
 		}
 
 		// create the subgraph.
-		BundleGraph subg0(np, bp, decomp.decomps[i].node_set);
+		BundleGraph subg0(np, bp, vertex1.set);
 
 		// execute one decomposition.
-		one_decomp(subg0, &decomp.decomps[i]);
+		one_decomp(subg0, VDG[vertex1.gidx], VDG);
+
 
 		// verify one decomposition.
-		verify_connected(np, bp, decomp.decomps[i]);
+		//verify_connected(np, bp, decomp.decomps[i]);
 
+		/*
 		// digg deeper for 2 decomposition.
 		for(hsize_t j=0; j<decomp.decomps[i].decomps.size(); j++){
 
-				// sanity bound.
-				if( decomp.decomps[i].decomps[j].node_set.size() < 4 ){
-					continue;
-				}
-
-				// create the subgraph.
-				BundleGraph subg1(np, bp, decomp.decomps[i].decomps[j].node_set);
-
-				// execute one decomposition.
-				two_decomp(subg1, np, bp, &decomp.decomps[i].decomps[j]);
-
-				// verify one decomposition.
-				verify_connected(np, bp, decomp.decomps[i].decomps[j]);
-
+			// sanity bound.
+			if( decomp.decomps[i].decomps[j].node_set.size() < 4 ){
+				continue;
 			}
 
+			// create the subgraph.
+			BundleGraph subg1(np, bp, decomp.decomps[i].decomps[j].node_set);
 
+			// execute one decomposition.
+			Result res2 = two_decomp(subg1);
+			decomp.decomps[i].decomps[j].decomps = res2.decomps;
+			decomp.decomps[i].decomps[j].inters = res2.inters;
+			decomp.decomps[i].decomps[j].root = res2.root;
+
+			cout << "two cut size: " << decomp.decomps[i].decomps[j].decomps.size() << endl;
+			cout << "first root: " << decomp.decomps[i].decomps[j].decomps[0].root << " " << res2.root << endl;
+
+			// verify one decomposition.
+			verify_connected(np, bp, decomp.decomps[i].decomps[j]);
+
+		}
+		*/
 	}
-
 
 	return EXIT_SUCCESS;
 }
 
 // zero decomposition.
-void zero_decomp(BundleGraph BG, Decomposition * decomp){
+void zero_decomp(BundleGraph BG, DecompGraph & DG, vector<DecompGraph> & VGD){
 
 	// announce.
 	WRITE_OUT("executing zero decomposition\n");
@@ -107,29 +118,36 @@ void zero_decomp(BundleGraph BG, Decomposition * decomp){
 	NodeArray<int> zero_comps(G);
 	int cnt = connectedComponents(G, zero_comps);
 
-	// create vector of sets.
+	// add nodes to DG.
+	sparse_hash_map<int, VertexID> nlookup;
 	for(int i=0; i<cnt; i++){
 
-		// create decompsition.
-		Decomposition tmp;
-		tmp.node_set = NodeSet();
-		tmp.decomps = vector<Decomposition>();
-		tmp.root = -1;
+		// add node.
+		VertexID vID = boost::add_vertex(DG);
+		nlookup[i] = vID;
 
-		// add to vector.
-		decomp->decomps.push_back(tmp);
+		// create graph.
+		DecompGraph subg;
+
+		// add graph to vector.
+		VGD.push_back(subg);
+
+		// set properties.
+		DG[vID].idx = i;
+		DG[vID].gidx = VGD.size() - 1;
+
 	}
 
 	// populate node set.
 	node n;
 	forall_nodes(n, G){
-		decomp->decomps[zero_comps[n]].node_set.insert(BG.n2idx[n]);
+		DG[nlookup[zero_comps[n]]].set.insert(BG.n2idx[n]);
 	}
 
 }
 
 // one decomposition.
-void one_decomp(BundleGraph BG, Decomposition * decomp){
+void one_decomp(BundleGraph BG, DecompGraph & DG, vector<DecompGraph> & VGD){
 
 	// announce.
 	WRITE_OUT("executing one decomposition\n");
@@ -147,17 +165,23 @@ void one_decomp(BundleGraph BG, Decomposition * decomp){
 	const Graph &BC_G = BC.auxiliaryGraph();
 	int cnt = BC.numberOfBComps();
 
-	// create vector of sets.
+	// add nodes to DG.
+	sparse_hash_map<int, VertexID> nlookup;
 	for(int i=0; i<cnt; i++){
-		// create decompsition.
-		Decomposition tmp;
-		tmp.node_set = NodeSet();
-		tmp.decomps = vector<Decomposition>();
-		tmp.inters = vector<Intersection>();
-		tmp.root = -1;
 
-		// add to vector.
-		decomp->decomps.push_back(tmp);
+		// add node.
+		VertexID vID = boost::add_vertex(DG);
+		nlookup[i] = vID;
+
+		// create graph.
+		DecompGraph subg;
+
+		// add graph to vector.
+		VGD.push_back(subg);
+
+		// set properties.
+		DG[vID].idx = i;
+		DG[vID].gidx = VGD.size() - 1;
 	}
 
 	// create node lookup node array.
@@ -185,8 +209,8 @@ void one_decomp(BundleGraph BG, Decomposition * decomp){
 				id2 = BG.n2idx[BC.original(n2)];
 
 				// add nodes to set.
-				decomp->decomps[cidx].node_set.insert(id1);
-				decomp->decomps[cidx].node_set.insert(id2);
+				DG[nlookup[cidx]].set.insert(id1);
+				DG[nlookup[cidx]].set.insert(id2);
 			}
 
 			// increment pointer.
@@ -197,15 +221,15 @@ void one_decomp(BundleGraph BG, Decomposition * decomp){
 	// verify 1-cuts.
 	NodeSet::iterator it;
 	vector<int> intersection;
-	for(hsize_t i=0; i<decomp->decomps.size(); i++){
-		for(hsize_t j=i+1; j<decomp->decomps.size(); j++){
+	for(hsize_t i=0; i<result.decomps.size(); i++){
+		for(hsize_t j=i+1; j<result.decomps.size(); j++){
 
 			// clear intersection.
 			intersection.clear();
 
 			// check intersection.
-			for(it = decomp->decomps[i].node_set.begin(); it!=decomp->decomps[i].node_set.end(); it++){
-				if( decomp->decomps[j].node_set.find(*it) != decomp->decomps[j].node_set.end() ){
+			for(it = result.decomps[i].node_set.begin(); it!=result.decomps[i].node_set.end(); it++){
+				if( result.decomps[j].node_set.find(*it) != result.decomps[j].node_set.end() ){
 					intersection.push_back(*it);
 				}
 			}
@@ -226,17 +250,25 @@ void one_decomp(BundleGraph BG, Decomposition * decomp){
 				tmp.cuts.push_back(intersection.front());
 
 				// insert into vector.
-				decomp->inters.push_back(tmp);
+				result.inters.push_back(tmp);
 			}
 		}
 	}
+
+
 }
 
 // two decomposition.
-void two_decomp(BundleGraph BG, NodePair np, BundlePair bp, Decomposition * decomp){
+Result two_decomp(BundleGraph BG){
 
 	// announce.
 	WRITE_OUT("executing two decomposition\n");
+
+	// create return.
+	Result result;
+	result.decomps = vector<Decomposition>();
+	result.inters = vector<Intersection>();
+	result.root = -1;
 
 	// save graph.
 	Graph G = BG.G;
@@ -250,6 +282,8 @@ void two_decomp(BundleGraph BG, NodePair np, BundlePair bp, Decomposition * deco
 	const Graph &SPQR_T = SPQR.tree();
 	int cnt = SPQR_T.numberOfNodes();
 
+	cout << "number of SPQR nodes: " << cnt << endl;
+
 	// create vector of sets.
 	for(int i=0; i<cnt; i++){
 		// create decompsition.
@@ -258,7 +292,7 @@ void two_decomp(BundleGraph BG, NodePair np, BundlePair bp, Decomposition * deco
 		tmp.decomps = vector<Decomposition>();
 
 		// add to vector.
-		decomp->decomps.push_back(tmp);
+		result.decomps.push_back(tmp);
 	}
 
 	// add nodes to sets.
@@ -267,7 +301,7 @@ void two_decomp(BundleGraph BG, NodePair np, BundlePair bp, Decomposition * deco
 
 		// check for root.
 		if( SPQR.rootNode() == n ){
-			decomp->root = idx;
+			result.root = idx;
 		}
 
 		// get skeleton and its graph.
@@ -284,12 +318,8 @@ void two_decomp(BundleGraph BG, NodePair np, BundlePair bp, Decomposition * deco
 		forall_nodes(p, g){
 			q = sk.original(p);
 			id1 = BG.n2idx[q];
-			decomp->decomps[idx].node_set.insert(id1);
+			result.decomps[idx].node_set.insert(id1);
 		}
-
-		cout << "harbles" << endl;
-		verify_connected(np, bp, decomp->decomps[idx]);
-
 
 		// increment index.
 		idx++;
@@ -298,15 +328,15 @@ void two_decomp(BundleGraph BG, NodePair np, BundlePair bp, Decomposition * deco
 	// verify 2-cuts.
 	NodeSet::iterator it;
 	vector<int> intersection;
-	for(hsize_t i=0; i<decomp->decomps.size(); i++){
-		for(hsize_t j=i+1; j<decomp->decomps.size(); j++){
+	for(hsize_t i=0; i<result.decomps.size(); i++){
+		for(hsize_t j=i+1; j<result.decomps.size(); j++){
 
 			// clear intersection.
 			intersection.clear();
 
 			// check intersection.
-			for(it = decomp->decomps[i].node_set.begin(); it!=decomp->decomps[i].node_set.end(); it++){
-				if( decomp->decomps[j].node_set.find(*it) != decomp->decomps[j].node_set.end() ){
+			for(it = result.decomps[i].node_set.begin(); it!=result.decomps[i].node_set.end(); it++){
+				if( result.decomps[j].node_set.find(*it) != result.decomps[j].node_set.end() ){
 					intersection.push_back(*it);
 				}
 			}
@@ -332,37 +362,40 @@ void two_decomp(BundleGraph BG, NodePair np, BundlePair bp, Decomposition * deco
 				tmp.cuts.push_back(intersection.back());
 
 				// insert into vector.
-				decomp->inters.push_back(tmp);
+				result.inters.push_back(tmp);
 			}
 		}
 	}
 
+	// return result.
+	return result;
 }
 
 
 // verify the decomposition yields connected components.
-void verify_connected(NodePair np, BundlePair bp, Decomposition decomp){
+void verify_connected(NodePair np, BundlePair bp, DecompGraph DG){
 
 	// announce.
 	WRITE_OUT("verifying...\n");
 
-	// check its not empty.
-	if( decomp.node_set.size() == 0 ){
-		WRITE_ERR("error: total decomp is empty.\n");
-		exit(1);
-	}
+	DecompGraph::vertex_iterator vertexIt, vertexEnd;
+	boost::tie(vertexIt, vertexEnd) = vertices(DG);
+	for (; vertexIt != vertexEnd; ++vertexIt){
 
-	// check each component.
-	for(hsize_t i=0; i<decomp.decomps.size(); i++){
+		// dereference vertexIt, get the ID
+	    VertexID vertexID = *vertexIt;
 
-		// check its not empty.
-		if( decomp.decomps[i].node_set.size() == 0 ){
+	    // get the actual vertex.
+	    DGVertex & vertex = DG[vertexID];
+
+	    // check if empty.
+	    if( vertex.set.size() == 0 ){
 			WRITE_ERR("error: decomp is empty.\n");
 			exit(1);
-		}
+	    }
 
 		// induce subgraph.
-		BundleGraph subg(np, bp, decomp.decomps[i].node_set);
+		BundleGraph subg(np, bp, vertex.set);
 
 		// verify its connected.
 		if( isConnected(subg.G) == false ){
