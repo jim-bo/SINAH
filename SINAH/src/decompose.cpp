@@ -31,6 +31,7 @@ int main(int argc, char* argv[]) {
 	// create the decomposition object.
 	DecompGraph DG;
 	vector<DecompGraph> VDG;
+	vector<NodeSet> VNS;
 
 	// build initial node set.
 	NodeSet active;
@@ -43,10 +44,10 @@ int main(int argc, char* argv[]) {
 	BundleGraph BG(np, bp, active);
 
 	// execute zero decomposition.
-	zero_decomp(BG, DG, VDG);
+	zero_decomp(BG, DG, VDG, VNS);
 
 	// verify zero decomposition.
-	verify_connected(np, bp, DG);
+	verify_connected(np, bp, DG, VNS);
 
 	// digg deeper for 1 decomposition.
 	DecompGraph::vertex_iterator vertexIt, vertexEnd;
@@ -60,15 +61,15 @@ int main(int argc, char* argv[]) {
 	    DGVertex & vertex1 = DG[vertexID];
 
 		// sanity bound.
-		if( vertex1.set.size() < 4 ){
+		if( VNS[vertex1.nidx].size() < 4 ){
 			continue;
 		}
 
 		// create the subgraph.
-		BundleGraph subg0(np, bp, vertex1.set);
+		BundleGraph subg1(np, bp, VNS[vertex1.nidx]);
 
 		// execute one decomposition.
-		one_decomp(subg0, VDG[vertex1.gidx], VDG);
+		one_decomp(subg1, VDG[vertex1.gidx], VDG, VNS);
 
 
 		// verify one decomposition.
@@ -106,7 +107,7 @@ int main(int argc, char* argv[]) {
 }
 
 // zero decomposition.
-void zero_decomp(BundleGraph BG, DecompGraph & DG, vector<DecompGraph> & VGD){
+void zero_decomp(BundleGraph BG, DecompGraph & DG, vector<DecompGraph> & VDG, vector<NodeSet> & VNS){
 
 	// announce.
 	WRITE_OUT("executing zero decomposition\n");
@@ -126,28 +127,29 @@ void zero_decomp(BundleGraph BG, DecompGraph & DG, vector<DecompGraph> & VGD){
 		VertexID vID = boost::add_vertex(DG);
 		nlookup[i] = vID;
 
-		// create graph.
-		DecompGraph subg;
-
 		// add graph to vector.
-		VGD.push_back(subg);
+		VDG.push_back(DecompGraph());
+
+		// add node set to vector.
+		VNS.push_back(NodeSet());
 
 		// set properties.
 		DG[vID].idx = i;
-		DG[vID].gidx = VGD.size() - 1;
+		DG[vID].gidx = VDG.size() - 1;
+		DG[vID].nidx = VNS.size() - 1;
 
 	}
 
 	// populate node set.
 	node n;
 	forall_nodes(n, G){
-		DG[nlookup[zero_comps[n]]].set.insert(BG.n2idx[n]);
+		VNS[DG[nlookup[zero_comps[n]]].nidx].insert(BG.n2idx[n]);
 	}
 
 }
 
 // one decomposition.
-void one_decomp(BundleGraph BG, DecompGraph & DG, vector<DecompGraph> & VGD){
+void one_decomp(BundleGraph BG, DecompGraph & DG, vector<DecompGraph> & VDG, vector<NodeSet> & VNS){
 
 	// announce.
 	WRITE_OUT("executing one decomposition\n");
@@ -173,15 +175,16 @@ void one_decomp(BundleGraph BG, DecompGraph & DG, vector<DecompGraph> & VGD){
 		VertexID vID = boost::add_vertex(DG);
 		nlookup[i] = vID;
 
-		// create graph.
-		DecompGraph subg;
-
 		// add graph to vector.
-		VGD.push_back(subg);
+		VDG.push_back(DecompGraph());
+
+		// add node set to vector.
+		VNS.push_back(NodeSet());
 
 		// set properties.
 		DG[vID].idx = i;
-		DG[vID].gidx = VGD.size() - 1;
+		DG[vID].gidx = VDG.size() - 1;
+		DG[vID].nidx = VNS.size() - 1;
 	}
 
 	// create node lookup node array.
@@ -209,8 +212,8 @@ void one_decomp(BundleGraph BG, DecompGraph & DG, vector<DecompGraph> & VGD){
 				id2 = BG.n2idx[BC.original(n2)];
 
 				// add nodes to set.
-				DG[nlookup[cidx]].set.insert(id1);
-				DG[nlookup[cidx]].set.insert(id2);
+				VNS[DG[nlookup[cidx]].nidx].insert(id1);
+				VNS[DG[nlookup[cidx]].nidx].insert(id2);
 			}
 
 			// increment pointer.
@@ -218,18 +221,33 @@ void one_decomp(BundleGraph BG, DecompGraph & DG, vector<DecompGraph> & VGD){
 		}
 	}
 
+
 	// verify 1-cuts.
 	NodeSet::iterator it;
 	vector<int> intersection;
-	for(hsize_t i=0; i<result.decomps.size(); i++){
-		for(hsize_t j=i+1; j<result.decomps.size(); j++){
+	DecompGraph::vertex_iterator vertexIt1, vertexEnd1, vertexIt2, vertexEnd2;
+	boost::tie(vertexIt1, vertexEnd1) = vertices(DG);
+	for (; vertexIt1 != vertexEnd1; ++vertexIt1){
+		boost::tie(vertexIt2, vertexEnd2) = vertices(DG);
+		for (; vertexIt2 != vertexEnd2; ++vertexIt2){
+
+			// skip self looks.
+			if( vertexIt1 == vertexIt2 ) continue;
+
+			// dereference vertexIt, get the ID
+			VertexID vertexID1 = *vertexIt1;
+			VertexID vertexID2 = *vertexIt2;
+
+			// get the actual vertex.
+			DGVertex & vertex1 = DG[vertexID1];
+			DGVertex & vertex2 = DG[vertexID2];
 
 			// clear intersection.
 			intersection.clear();
 
 			// check intersection.
-			for(it = result.decomps[i].node_set.begin(); it!=result.decomps[i].node_set.end(); it++){
-				if( result.decomps[j].node_set.find(*it) != result.decomps[j].node_set.end() ){
+			for(it = VNS[vertex1.nidx].begin(); it!=VNS[vertex1.nidx].end(); it++){
+				if( VNS[vertex2.nidx].find(*it) != VNS[vertex2.nidx].end() ){
 					intersection.push_back(*it);
 				}
 			}
@@ -243,23 +261,24 @@ void one_decomp(BundleGraph BG, DecompGraph & DG, vector<DecompGraph> & VGD){
 			// save intersection.
 			if( intersection.size() == 1 ){
 
-				// create intersection.
-				Intersection tmp;
-				tmp.compa = i;
-				tmp.compb = j;
-				tmp.cuts.push_back(intersection.front());
-
 				// insert into vector.
-				result.inters.push_back(tmp);
+				EdgeID edge;
+				bool ok;
+				boost::tie(edge, ok) = boost::add_edge(vertexID1, vertexID2, DG); // boost::add_edge gives a std::pair<EdgeID,bool>. It's complicated to write, so boost::tie does it for us.
+				if(ok == false){
+					WRITE_ERR("problem adding edge.\n");
+					exit(1);
+				}
+				DG[edge].cuts.push_back(intersection.front());
 			}
 		}
 	}
 
 
 }
-
+/*
 // two decomposition.
-Result two_decomp(BundleGraph BG){
+Result two_decomp(BundleGraph BG, DecompGraph & DG, vector<DecompGraph> & VDG, vector<NodeSet> & VNS){
 
 	// announce.
 	WRITE_OUT("executing two decomposition\n");
@@ -370,10 +389,10 @@ Result two_decomp(BundleGraph BG){
 	// return result.
 	return result;
 }
-
+*/
 
 // verify the decomposition yields connected components.
-void verify_connected(NodePair np, BundlePair bp, DecompGraph DG){
+void verify_connected(NodePair np, BundlePair bp, DecompGraph DG, vector<NodeSet> VNS){
 
 	// announce.
 	WRITE_OUT("verifying...\n");
@@ -389,13 +408,13 @@ void verify_connected(NodePair np, BundlePair bp, DecompGraph DG){
 	    DGVertex & vertex = DG[vertexID];
 
 	    // check if empty.
-	    if( vertex.set.size() == 0 ){
+	    if( VNS[vertex.nidx].size() == 0 ){
 			WRITE_ERR("error: decomp is empty.\n");
 			exit(1);
 	    }
 
 		// induce subgraph.
-		BundleGraph subg(np, bp, vertex.set);
+		BundleGraph subg(np, bp, VNS[vertex.nidx]);
 
 		// verify its connected.
 		if( isConnected(subg.G) == false ){

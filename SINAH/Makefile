@@ -1,4 +1,4 @@
-CXXFLAGS =	-O2 -g -Wall -fmessage-length=0
+CXXFLAGS = -g -Wall -fmessage-length=0
 
 SOURCE =	src
 

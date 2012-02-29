@@ -66,7 +66,7 @@ typedef struct Result {
 struct DGVertex {
     int idx;
 	int gidx;
-	NodeSet set;
+	int nidx;
 };
 
 struct DGEdge {
@@ -85,11 +85,11 @@ typedef DecompGraph::vertex_descriptor VertexID;
 typedef DecompGraph::edge_descriptor   EdgeID;
 
 // decomposition functions.
-void zero_decomp(BundleGraph BG, DecompGraph & DG, std::vector<DecompGraph> & VGD);
-void one_decomp(BundleGraph BG, DecompGraph & DG, std::vector<DecompGraph> & VGD);
-Result two_decomp(BundleGraph BG);
+void zero_decomp(BundleGraph BG, DecompGraph & DG, std::vector<DecompGraph> & VDG, std::vector<NodeSet> & VNS);
+void one_decomp(BundleGraph BG, DecompGraph & DG, std::vector<DecompGraph> & VDG, std::vector<NodeSet> & VNS);
+void two_decomp(BundleGraph BG, DecompGraph & DG, std::vector<DecompGraph> & VDG, std::vector<NodeSet> & VNS);
 
 // ancillary functions.
-void verify_connected(NodePair np, BundlePair bp, DecompGraph decomp);
+void verify_connected(NodePair np, BundlePair bp, DecompGraph decomp, std::vector<NodeSet> VNS);
 
 #endif /* DECOMPOSE_H_ */
