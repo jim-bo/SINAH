@@ -6,7 +6,6 @@ and saving the files to HDF5 tile.
 from data_structs.types import node_dt
 
 # system imports.
-import biobuffers
 import numpy as np
 import logging
 import h5py
@@ -24,43 +23,6 @@ def create_lookup(nodes):
 		
 	return lookup
 	
-
-def create_nodes(fasta_file):
-	''' creates node array given fasta file.'''
-	
-	# loop over each seq.
-	logging.debug("retrieving nodes information.")
-	info = []
-	idx = 0
-	for entry in biobuffers.fasta_buffer(fasta_file):
-		
-		# save info to list.
-		info.append((idx, entry['name'], len(entry['seq'])))
-		idx += 1
-	
-	
-	# create array for nodes.
-	sz = len(info)
-	logging.debug("creating array for %i nodes." % sz)
-	nodes = np.zeros(sz, dtype=node_dt)
-	
-	# save list to structure.
-	logging.debug("copying %i nodes." % sz)
-	for i in range(nodes.size):
-		# debug.
-		if i % 100000 == 0:
-			logging.debug("... %i" % i)
-		
-		# set info.
-		nodes[i]['node_idx'] = info[i][0]
-		nodes[i]['ctg_name'] = info[i][1]
-		nodes[i]['ctg_width'] = info[i][2]
-		nodes[i]['ctg_orien'] = -1
-		nodes[i]['ctg_order'] = -1
-		
-				
-	# return list.
-	return nodes
 
 def load_nodes(file_path):
 	''' loads nodes from h5py file.'''

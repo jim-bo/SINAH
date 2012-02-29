@@ -39,93 +39,35 @@ def make_agp(fpath):
 	# load agp array.
 	agp_edges = load_agps(fpath)
 	
-	# build AGP graph.
-	AG = ScaffAgp(agp_edges)	
+	# build sorted edge set.
+	edges = set()
+	for i in range(agp_edges.size):
+		
+		# skip contigs themselves.
+		if agp_edges[i]['comp_type'] != 'N': continue
+		
+		# add sorted edges.
+		key = tuple(sorted([agp_edges[i-1]['comp_name'], agp_edges[i+1]['comp_name']]))
+		edges.add(key)
+		
 	
-	return AG, agp_edges
+	return edges, agp_edges
 
-def build_adj(G):
-	''' build adjacent set '''
 	
-	# create empty set.
-	adj = set()
-	
-	# loop over edges and add.
-	for e in G.edges():
-		
-		# add to set.
-		adj.add(e)
-		
-	# return set.
-	return adj
-
-def compute_whole(nodes, true_adj, TG):
-	''' computes statistics when TG is already oriented. This
-	method explicitly represents all 4 sets and should only be
-	used to test the logic of these operations or on some
-	small test cases to understand error and stuff.'''
-	
-	# build false adj.
-	false_adj = set()
-	for n1 in nodes:
-		for n2 in nodes:
-			
-			# skip same and true_adj.
-			if n1 == n2 or (n1, n2) in true_adj:
-				continue
-				
-			# add false adj.
-			false_adj.add((n1, n2))
-	
-	# build predicted adj.
-	pred_adj = build_adj(TG)
-		
-	# build predicted nonadj.
-	pred_nonadj = set()
-	for n1 in nodes:
-		for n2 in nodes:
-			
-			# skip same and true_adj.
-			e = (n1, n2)
-			if n1 == n2 or e in pred_adj:
-				continue
-				
-			# add false adj.
-			pred_nonadj.add(e)
-
-	# compute the A statistic set.
-	A = true_adj.intersection(pred_adj)
-		
-	# compute the B statistic set.
-	B = false_adj.intersection(pred_adj)
-	
-	# compute the C statistic set.
-	C = true_adj.intersection(pred_nonadj)
-
-	# compute the D statistic set.
-	D = false_adj.intersection(pred_nonadj)
-		
-	# return categories.
-	return len(A), len(B), len(C), len(D)
-	
-def compute_formula(nodes, true_adj, RG, TG):
+def compute_formula(true_adj, test_adj, n):
 	''' computes statistics when TG is already oriented. This
 	method computes A and B exactly, but uses formulas
 	to find C and D.'''
 	
 	# set vars.
-	n = RG.number_of_nodes()
-	m = RG.number_of_edges()
+	m = len(true_adj)
 	N = n * (n-1)
-	
-	# build predicted adj.
-	pred_adj = build_adj(TG)
 
 	# compute the A statistic set.
-	A = true_adj.intersection(pred_adj)
+	A = true_adj.intersection(test_adj)
 		
 	# compute the B statistic set.
-	B = pred_adj.difference(true_adj)
+	B = test_adj.difference(true_adj)
 	
 	# compute the C statistic set.
 	C = m - len(A)
@@ -136,109 +78,7 @@ def compute_formula(nodes, true_adj, RG, TG):
 	# return categories.
 	return len(A), len(B), C, D, A
 
-def compute_orientation(ref_agp, test_agp, TG, true_adj):
-	''' calculates orientation based on maximized A '''
-	
-	# track global good and bad.
-	good = 0
-	bad = 0
-	
-	# map contig to reference idx.
-	ref_idx = {}
-	for i in range(ref_agp.size):
-		ref_idx[ref_agp[i]['comp_name']] = i
-
-	# map contig to reference idx.
-	test_idx = {}
-	for i in range(test_agp.size):
-		test_idx[test_agp[i]['comp_name']] = i
-
-	# loop over each component.
-	for comp in nx.weakly_connected_components(TG):
-		
-		# build predicted adjacents (both ways).
-		pred_adj_1 = set()
-		pred_adj_2 = set()
-		for e in TG.edges(comp):
-			pred_adj_1.add( (e[0], e[1]) )
-			pred_adj_2.add( (e[1], e[0]) )
-			
-		# compute the A statistic set.
-		A_1 = true_adj.intersection(pred_adj_1)
-		A_2 = true_adj.intersection(pred_adj_2)
-
-		# test which has best A statistic.
-		if len(A_1) < len(A_2):
-			
-			# flip entries in test AGP array.
-			for n in comp:
-				test_agp[test_idx[n]]['comp_orien'] = 1 - test_agp[test_idx[n]]['comp_orien']
 				
-		# compute sizes.
-		ref_size = [0, 0]
-		test_size = [0, 0]
-				
-		for n in comp:
-			ref_size[ ref_agp[ ref_idx[n] ]['comp_orien'] ] += 1
-			test_size[ test_agp[ test_idx[n] ]['comp_orien'] ] += 1
-			
-		# find the difference.
-		tmp1 = sorted(ref_size)
-		tmp2 = sorted(test_size)
-		
-		# note it.
-		bad += abs(tmp1[0] - tmp2[0])
-		good += len(comp) - abs(tmp1[0] - tmp2[0])
-		
-					
-	# return counts.
-	return good, bad
-			
-def orient_TG(nodes, true_adj, TG):
-	''' creates a new TG with edges orientated by max category A'''
-
-	# create new directed graph.
-	NG = nx.DiGraph()
-	
-	# add all nodes.
-	for n in nodes:
-		NG.add_node(n)
-
-	# loop over components.
-	elist = []
-	for comp in nx.weakly_connected_components(TG):
-
-		# build predicted adjacents (both ways).
-		pred_adj_1 = set()
-		pred_adj_2 = set()
-		for e in TG.edges(comp):
-			pred_adj_1.add( (e[0], e[1]) )
-			pred_adj_2.add( (e[1], e[0]) )
-			
-		# compute the A statistic set.
-		A_1 = true_adj.intersection(pred_adj_1)
-		A_2 = true_adj.intersection(pred_adj_2)
-
-		# test which has best A statistic.
-		if len(A_1) > len(A_2):
-			A = A_1
-			pred_adj = pred_adj_1
-		else:
-			A = A_2
-			pred_adj = pred_adj_2
-			
-		# add edges to new graph.
-		for e in pred_adj:
-			elist.append(e)
-			
-	# add edges in one fell swoop.
-	NG.add_edges_from(elist)
-			
-	# return new graph.
-	return NG
-			
-
-	
 def sanity_check(RG, TG, A, B, C, D):
 	''' make sure these parameter make sense '''
 	
@@ -266,71 +106,6 @@ def sanity_check(RG, TG, A, B, C, D):
 		
 	if fail == True:
 		sys.exit(1)
-		
-def ensure_consistent(TG, nodes, ref_edges, test_edges):
-	''' makes sure they contain same nodes '''
-	
-	# build index of nodes.
-	idx = {}
-	for i in range(ref_edges.size):
-		if ref_edges[i]['comp_type'] == "W":
-			idx[ref_edges[i]['comp_name']] = i
-	
-	# add missing nodes.
-	for n in nodes:
-		
-		# node isn't present.
-		if TG.has_node(n) == False:
-			
-			# add it to graph.
-			TG.add_node(n)
-			
-			# resize the numpy array.
-			test_edges = np.resize(test_edges, test_edges.size + 1)
-			
-			# check if there.
-			if n not in idx:
-				logging.error("wow: n not in idx")
-				logging.error("n: %s\n" % (n))
-				continue
-				#sys.exit(1)
-			if idx[n] not in ref_edges:
-				logging.error("wow: idx[n] not in ref_edges")
-				logging.error("n: %s\tidx[n]:%s\n" % (n, idx[n]))
-				continue
-				#sys.exit(1)
-			
-			# copy info into it.
-			test_edges[-1] = ref_edges[idx[n]]
-			
-			# get next scaffold id.
-			scaf_name = "scaffold_%i" % (int(test_edges[-2]['scaf_name'].split("_")[1]) + 1)
-			
-			# update other vars.
-			test_edges[-1]['scaf_name'] = scaf_name
-			test_edges[-1]['scaf_idx'] = 1
-			test_edges[-1]['scaf_start'] = 1
-			test_edges[-1]['scaf_stop'] = test_edges[-1]['comp_stop']
-			
-				
-	# make set out of nodes.
-	nset = set(nodes)
-			
-	# check for extra nodes.
-	fail = False
-	for n in TG.nodes():
-		
-		# error check.
-		if n not in nset:
-			fail = True
-			logging.error("extra node: %s" % n)
-			
-	# die.
-	if fail == True:
-		sys.exit(1)
-		
-	# return TG and test edges.
-	return TG, test_edges
 	
 def gap_deviation(A_SET, ref_edges, test_edges):
 	''' calculates the deviation from the actual gap size for the A
@@ -451,7 +226,8 @@ def calculate_n50(edges):
 	
 	# annotate the array.
 	for i in range(edges.size):
-		ctgarr[ ctgset[ edges[i]['scaf_name'] ] ] += edges[i]['scaf_stop'] - edges[i]['scaf_start']
+		if edges[i]['comp_type'] == 'W':
+			ctgarr[ ctgset[ edges[i]['scaf_name'] ] ] += edges[i]['scaf_stop'] - edges[i]['scaf_start']
 	
 	# sort the array.
 	ctgarr.sort()
@@ -476,7 +252,7 @@ def calculate_n50(edges):
 	# return N50
 	return n50
 			
-def trueify_scaffold(edges, TG, a_set):
+def trueify_scaffold(edges, a_set):
 	''' breaks scaffolds at bad edges '''
 	
 	# count bad edges.
@@ -543,30 +319,17 @@ def trueify_scaffold(edges, TG, a_set):
 ########### script ################## 
 
 # make graphs.
-RG, ref_edges = make_agp(ref_file)
-TG, test_edges = make_agp(test_file)
+true_adj, ref_edges = make_agp(ref_file)
+test_adj, test_edges = make_agp(test_file)
 
-# get list of nodes.
-nodes = [n for n in RG.nodes()]
-
-# ensure all nodes present in TG.
-TG, test_edges = ensure_consistent(TG, nodes, ref_edges, test_edges)
-
-# build true adj set.
-true_adj = build_adj(RG)
-
-# orient the test graph components.
-TG = orient_TG(nodes, true_adj, TG)
+# counter number of contigs.
+n = 0
+for i in range(ref_edges.size):
+	if ref_edges[i]['comp_type'] == 'W':
+		n += 1
 
 # calculate 4 parameters.
-#A, B, C, D = compute_whole(nodes, true_adj, TG)
-A, B, C, D, A_SET = compute_formula(nodes, true_adj, RG, TG)
-
-# sanity check the 4 parameters.
-sanity_check(RG, TG, A, B, C, D)
-
-# calculate orientation.
-orien_good, orien_bad = compute_orientation(ref_edges, test_edges, TG, true_adj)
+A, B, C, D, A_SET = compute_formula(true_adj, test_adj, n)
 
 # get gap deviation.
 gap_dev = gap_deviation(A_SET, ref_edges, test_edges)
@@ -578,15 +341,13 @@ runtime = get_runtime(test_file)
 n50 = calculate_n50(test_edges)
 
 # get the TP50.
-ne = trueify_scaffold(test_edges, TG, A_SET)
+ne = trueify_scaffold(test_edges, A_SET)
 tp50 = calculate_n50(ne)
 
 # print the result.
 res = []
 res.append(name)
 res.append(method)
-res.append(orien_good)
-res.append(orien_bad)
 res.append(A)
 res.append(B)
 res.append(C)
