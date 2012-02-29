@@ -10,7 +10,6 @@
 
 // namepsace
 using namespace ogdf;
-using namespace std;
 
 // basic constructor.
 BundleGraph::BundleGraph(NodePair np, BundlePair bp, NodeSet active){

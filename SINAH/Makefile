@@ -17,7 +17,7 @@ all:	SINAH decompose
 SINAH:	$(SOURCE)/SINAH.o
 	$(CXX) -o $(OUTPUT)/SINAH $(SOURCE)/SINAH.o $(LDFLAGS)
 	
-decompose:	$(SOURCE)/decompose.o $(SOURCE)/BundleGraph.o
+decompose:	$(SOURCE)/decompose.o
 	$(CXX) -o $(OUTPUT)/decompose $(SOURCE)/decompose.o $(SOURCE)/BundleGraph.o $(LDFLAGS)
 
 
