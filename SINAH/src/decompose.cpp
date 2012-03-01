@@ -307,7 +307,7 @@ int main(int argc, char* argv[]) {
 		if( DG[source(ebuffer[i], DG)].stage == 1 ) {
 
 			// target is cut.
-			idb1 = DG[glookup[DG[glookup[pid2]].pidx]].pidx;
+			idb1 = DG[glookup[pid2]].pidx;
 			idb2 = DG[glookup[pid2]].idx;
 			idb3 = DG[target(ebuffer[i], DG)].idx;
 
