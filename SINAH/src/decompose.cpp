@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
 	zero_decomp(BG, DG);
 
 	// verify decomposition.
-	verify_connected(np, bp, DG);
+	//verify_connected(np, bp, DG);
 
 	// build vector of vertexID's.
 	vector<VertexID> buffer;
@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	// verify decomposition.
-	verify_connected(np, bp, DG);
+	//verify_connected(np, bp, DG);
 
 	// build vector of vertexID's.
 	buffer.clear();
@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	// verify decomposition.
-	verify_connected(np, bp, DG);
+	//verify_connected(np, bp, DG);
 
     // make the annotation files.
     char zero_file[500];
