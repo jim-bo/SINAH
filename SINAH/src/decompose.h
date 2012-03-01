@@ -19,6 +19,7 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/visitors.hpp>
 #include <boost/graph/depth_first_search.hpp>
+#include <boost/foreach.hpp>
 
 
 // bundle graph.
@@ -29,6 +30,7 @@
 
 struct DGVertex {
     int idx;
+    int pidx;
     int stage;
     int global;
 	google::sparse_hash_set<int> set;
@@ -80,8 +82,14 @@ struct Etmp {
 };
 class MyVisitor : public boost::default_dfs_visitor {
 public:
+
+	// constructor.
+	MyVisitor(std::vector<Etmp> * e){
+		elist = e;
+	}
+
 	// track directed edges in tree.
-	std::vector<Etmp> elist;
+	std::vector<Etmp> * elist;
 	void tree_edge(TEdgeID e, const TGraph& g) {
 
 		// get parent and child.
@@ -95,7 +103,7 @@ public:
 		tmp.cuts = g[e].cuts;
 
 		// add it.
-		elist.push_back(tmp);
+		elist->push_back(tmp);
 		return;
 	}
 };

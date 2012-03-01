@@ -14,6 +14,6 @@
 #include <ogdf/decomposition/BCTree.h>
 #include <ogdf/decomposition/StaticSPQRTree.h>
 #include <ogdf/basic/HashArray.h>
-
+#include <ogdf/basic/GraphCopy.h>
 
 #endif /* OGDF_H_ */

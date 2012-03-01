@@ -25,7 +25,8 @@ int main(int argc, char* argv[]) {
 	// arguments.
 	const char * node_file = argv[1];
 	const char * bundle_file = argv[2];
-	unsigned int cutoff = atoi(argv[3]);
+	const char * result_dir = argv[3];
+	unsigned int cutoff = atoi(argv[4]);
 
 	// sanity check.
 	if( cutoff < 5 ){
@@ -56,13 +57,19 @@ int main(int argc, char* argv[]) {
 	// verify decomposition.
 	verify_connected(np, bp, DG);
 
-	// digg deeper for 1 decomposition.
+	// build vector of vertexID's.
+	vector<VertexID> buffer;
 	DecompGraph::vertex_iterator vertexIt, vertexEnd;
 	boost::tie(vertexIt, vertexEnd) = vertices(DG);
 	for (; vertexIt != vertexEnd; ++vertexIt) {
+		buffer.push_back(*vertexIt);
+	}
+
+	// digg deeper for 1 decomposition.
+	for(unsigned int i=0; i<buffer.size(); i++){
 
 		// dereference vertexIt, get the ID
-	    VertexID vertexID = *vertexIt;
+	    VertexID vertexID = buffer[i];
 
 	    // get the actual vertex.
 	    DGVertex & vertex1 = DG[vertexID];
@@ -84,12 +91,18 @@ int main(int argc, char* argv[]) {
 	// verify decomposition.
 	verify_connected(np, bp, DG);
 
-	// digg deeper for 2 decomposition.
+	// build vector of vertexID's.
+	buffer.clear();
 	boost::tie(vertexIt, vertexEnd) = vertices(DG);
 	for (; vertexIt != vertexEnd; ++vertexIt) {
+		buffer.push_back(*vertexIt);
+	}
+
+	// digg deeper for 2 decomposition.
+	for(unsigned int i=0; i<buffer.size(); i++){
 
 		// dereference vertexIt, get the ID
-	    VertexID vertexID = *vertexIt;
+	    VertexID vertexID = buffer[i];
 
 	    // get the actual vertex.
 	    DGVertex & vertex1 = DG[vertexID];
@@ -111,7 +124,203 @@ int main(int argc, char* argv[]) {
 	// verify decomposition.
 	verify_connected(np, bp, DG);
 
-	// write out decomposition to disk.
+    // make the annotation files.
+    char zero_file[500];
+    char one_file[500];
+    char two_file[500];
+
+    sprintf(zero_file, "%s/decomp_zero.txt", result_dir);
+    sprintf(one_file, "%s/decomp_one.txt", result_dir);
+    sprintf(two_file, "%s/decomp_two.txt", result_dir);
+
+    // open the annotation files.
+    FILE * zero_out = fopen(zero_file, "w");
+    FILE * one_out = fopen(one_file, "w");
+    FILE * two_out = fopen(two_file, "w");
+
+	// build vector of vertexID's.
+	buffer.clear();
+	boost::tie(vertexIt, vertexEnd) = vertices(DG);
+	for (; vertexIt != vertexEnd; ++vertexIt) {
+		buffer.push_back(*vertexIt);
+	}
+
+	// build vector of edgeID's
+	vector<EdgeID> ebuffer;
+	DecompGraph::edge_iterator edgeIt, edgeEnd;
+	BOOST_FOREACH(EdgeID eid, edges(DG)) {
+		ebuffer.push_back(eid);
+	}
+
+	// build parent lookup.
+	sparse_hash_map<int, VertexID> glookup;
+	for(unsigned int i=0; i<buffer.size(); i++){
+		glookup[DG[buffer[i]].global] = buffer[i];
+	}
+
+	// write zero.
+	for(unsigned int i=0; i<buffer.size(); i++){
+
+		// prep.
+	    VertexID vertexID = buffer[i];
+	    DGVertex & vertex1 = DG[vertexID];
+
+	    // skip non-level 0.
+	    if( vertex1.stage != 0 ) continue;
+
+		// write each zero node.
+		fprintf(zero_out, "stage=0\ttype=N\tidx=%d,,\t", vertex1.idx);
+
+		// fill the set.
+		fprintf(zero_out, "set=");
+		for(NodeSet::iterator it=vertex1.set.begin(); it!=vertex1.set.end(); it++){
+			fprintf(zero_out, "%d,", *it);
+		}
+		fprintf(zero_out, "\n");
+	}
+
+	// write one.
+	int ida1, ida2, ida3, idb1, idb2, idb3;
+	for(unsigned int i=0; i<buffer.size(); i++){
+
+		// prep.
+	    VertexID vertexID = buffer[i];
+	    DGVertex & vertex1 = DG[vertexID];
+
+	    // skip non-level 1.
+	    if( vertex1.stage != 1 ) continue;
+
+	    // prep 2.
+	    ida1 = DG[glookup[vertex1.pidx]].idx;
+	    ida2 = vertex1.idx;
+
+		// write each one node.
+		fprintf(one_out, "stage=1\ttype=N\tidx=%d,%d\t", ida1, ida2);
+
+		// fill the set.
+		fprintf(one_out, "set=");
+		for(NodeSet::iterator it=vertex1.set.begin(); it!=vertex1.set.end(); it++){
+			fprintf(one_out, "%d,", *it);
+		}
+		fprintf(one_out, "\n");
+    }
+
+    // write one edges.
+	int pid1, pid2, c1;
+	for(unsigned int i=0; i<ebuffer.size(); i++){
+
+		// get source and target info.
+		pid1 = DG[source(ebuffer[i], DG)].pidx;
+		pid2 = DG[target(ebuffer[i], DG)].pidx;
+
+		// only add edges in same component.
+		if( pid1 != pid2 ) continue;
+
+		// only add edges in 1 stage.
+		if( DG[target(ebuffer[i], DG)].stage != 1 ) continue;
+
+		// get parents local idx.
+		ida1 = DG[glookup[pid1]].idx;
+		ida2 = DG[source(ebuffer[i], DG)].idx;
+
+		idb1 = DG[glookup[pid2]].idx;
+		idb2 = DG[target(ebuffer[i], DG)].idx;
+
+		// get singular cut.
+		c1 = DG[ebuffer[i]].cuts.front();
+
+		// write each one edge.
+		fprintf(one_out, "stage=1\ttype=E\tidx1=%d,%d\tidx2=%d,%d\tcut=%d\n", ida1, ida2, idb1, idb2, c1);
+    }
+
+	// write two.
+	int id3;
+	for(unsigned int i=0; i<buffer.size(); i++){
+
+		// prep.
+	    VertexID vertexID = buffer[i];
+	    DGVertex & vertex1 = DG[vertexID];
+
+	    // skip non-level 2.
+	    if( vertex1.stage != 2 ) continue;
+
+	    // prep 2.
+	    ida1 = DG[DG[glookup[vertex1.pidx]].pidx].idx;
+	    ida2 = DG[glookup[vertex1.pidx]].idx;
+	    ida3 = vertex1.idx;
+
+		// write each one node.
+		fprintf(two_out, "stage=2\ttype=N\tidx=%d,%d,%d\t", ida1, ida2, ida3);
+
+		// fill the set.
+		fprintf(two_out, "set=");
+		for(NodeSet::iterator it=vertex1.set.begin(); it!=vertex1.set.end(); it++){
+			fprintf(two_out, "%d,", *it);
+		}
+		fprintf(two_out, "\n");
+    }
+
+    // write two edges.
+	int pid3, pid4, c2;
+	for(unsigned int i=0; i<ebuffer.size(); i++){
+
+		// get source and target info.
+		pid1 = DG[source(ebuffer[i], DG)].pidx;
+		pid2 = DG[target(ebuffer[i], DG)].pidx;
+		pid3 = DG[glookup[pid1]].pidx;
+		pid4 = DG[glookup[pid2]].pidx;
+
+		// only add edges in same component.
+		if( pid1 != pid2 || pid3 != pid4 ) continue;
+
+		// only add edges in 2 stage.
+		if( DG[target(ebuffer[i], DG)].stage != 2 ) continue;
+
+		// get parents local idx.
+		ida1 = DG[glookup[DG[glookup[pid1]].pidx]].pidx;
+		ida2 = DG[glookup[pid1]].idx;
+		ida3 = DG[source(ebuffer[i], DG)].idx;
+
+		idb1 = DG[glookup[DG[glookup[pid2]].pidx]].pidx;
+		idb2 = DG[glookup[pid2]].idx;
+		idb3 = DG[target(ebuffer[i], DG)].idx;
+
+		// get singular cut.
+		c1 = DG[ebuffer[i]].cuts.front();
+		c2 = DG[ebuffer[i]].cuts.back();
+
+		// write each one edge.
+		fprintf(two_out, "stage=2\ttype=E\tidx1=%d,%d,%d\tidx2=%d,%d,%d\tcut=%d,%d\n", ida1, ida2, ida3, idb1, idb2, idb3, c1, c2);
+    }
+
+	// write roots.
+	for(unsigned int i=0; i<ebuffer.size(); i++){
+
+		// get source and target info.
+		pid1 = DG[source(ebuffer[i], DG)].pidx;
+		pid2 = DG[target(ebuffer[i], DG)].pidx;
+
+		// look for target in 2.
+		if( DG[target(ebuffer[i], DG)].stage != 2 ) continue;
+
+		// look for different source.
+		if( DG[source(ebuffer[i], DG)].stage == 1 ) {
+
+			// target is cut.
+			idb1 = DG[glookup[DG[glookup[pid2]].pidx]].pidx;
+			idb2 = DG[glookup[pid2]].idx;
+			idb3 = DG[target(ebuffer[i], DG)].idx;
+
+			// target is cut.
+			 fprintf(two_out, "stage=2\ttype=R\tidx=%d,%d,%d\n", idb1, idb2, idb3);
+		}
+	}
+
+	// close files.
+    fclose(zero_out);
+    fclose(one_out);
+    fclose(two_out);
+
 	WRITE_OUT("completed succesfully.\n");
 	return EXIT_SUCCESS;
 }
@@ -139,6 +348,7 @@ void zero_decomp(BundleGraph BG, DecompGraph & DG){
 
 		// set properties.
 		DG[vID].idx = i;
+		DG[vID].pidx = -1;
 		DG[vID].stage = 0;
 		DG[vID].set.clear();
 		DG[vID].global = GLOBAL_IDX;
@@ -186,6 +396,7 @@ void one_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent){
 
 		// set properties.
 		DG[vID].idx = i;
+		DG[vID].pidx = DG[parent].global;
 		DG[vID].stage = 1;
 		DG[vID].set.clear();
 		DG[vID].global = GLOBAL_IDX;
@@ -214,6 +425,9 @@ void one_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent){
 		// add node.
 		TVertexID vID = boost::add_vertex(TG);
 		tlookup[i] = vID;
+
+		// annotate it.
+		TG[vID].idx = i;
 	}
 
 	// add edges to TGraph
@@ -267,15 +481,22 @@ void one_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent){
 	}
 
 	// DFS this graph to build the decomposition tree.
-	MyVisitor vis;
+	vector<Etmp> elist;
+	MyVisitor vis(&elist);
 	boost::depth_first_search(TG, boost::visitor(vis));
 
 	// apply the decomposition edges to the actual graph.
-	for(vector<Etmp>::iterator it=vis.elist.begin(); it!=vis.elist.end(); it++){
+	for(vector<Etmp>::iterator it=elist.begin(); it!=elist.end(); it++){
 
 		// grab nodes.
 		VertexID p = nlookup[it->source];
 		VertexID q = nlookup[it->target];
+
+		// sanity check.
+		if(it->source == it->target){
+			WRITE_ERR("BAD DFS1\n");
+			exit(1);
+		}
 
 		// add edges.
 		EdgeID edge;
@@ -379,14 +600,17 @@ void two_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent){
 		}
 	}
 
+	// copy graph for messing with.
+	GraphCopySimple GC(G);
+
 	// remove all cuts from graph.
 	for(sparse_hash_map<int, vector<int> >::iterator it=neighbors.begin(); it!=neighbors.end(); it++){
-		G.delNode(BG.idx2n[it->first]);
+		GC.delNode(GC.copy(BG.idx2n[it->first]));
 	}
 
 	// identify connected components.
-	NodeArray<int> comps(G);
-	int cnt = connectedComponents(G, comps);
+	NodeArray<int> comps(GC);
+	int cnt = connectedComponents(GC, comps);
 
 	// add nodes to DG.
 	sparse_hash_map<int, VertexID> nlookup;
@@ -398,6 +622,7 @@ void two_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent){
 
 		// set properties.
 		DG[vID].idx = i;
+		DG[vID].pidx = DG[parent].global;
 		DG[vID].stage = 2;
 		DG[vID].set.clear();
 		DG[vID].global = GLOBAL_IDX;
@@ -406,9 +631,9 @@ void two_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent){
 
 	// populate node set with non-cut.
 	sparse_hash_map<int, VertexID> xlookup;
-	forall_nodes(n, G){
-		DG[nlookup[comps[n]]].set.insert(BG.n2idx[n]);
-		xlookup[BG.n2idx[n]] = nlookup[comps[n]];
+	forall_nodes(n, GC){
+		DG[nlookup[comps[n]]].set.insert(BG.n2idx[GC.original(n)]);
+		xlookup[BG.n2idx[GC.original(n)]] = nlookup[comps[n]];
 	}
 
 	// add the cut nodes.
@@ -437,6 +662,9 @@ void two_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent){
 		// add node.
 		TVertexID vID = boost::add_vertex(TG);
 		tlookup[i] = vID;
+
+		// annotate it.
+		TG[vID].idx = i;
 	}
 
 	// add edges to TGraph
@@ -497,11 +725,12 @@ void two_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent){
 	}
 
 	// DFS this graph to build the decomposition tree.
-	MyVisitor vis;
+	vector<Etmp> elist;
+	MyVisitor vis(&elist);
 	boost::depth_first_search(TG, boost::visitor(vis));
 
 	// apply the decomposition edges to the actual graph.
-	for(vector<Etmp>::iterator it=vis.elist.begin(); it!=vis.elist.end(); it++){
+	for(vector<Etmp>::iterator it=elist.begin(); it!=elist.end(); it++){
 
 		// grab nodes.
 		VertexID p = nlookup[it->source];
@@ -527,6 +756,7 @@ void two_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent){
 		WRITE_ERR("problem adding edge.\n");
 		exit(1);
 	}
+
 }
 
 // verify the decomposition yields connected components.
@@ -558,23 +788,10 @@ void verify_connected(NodePair np, BundlePair bp, DecompGraph DG){
 
 		// verify its connected.
 		if( isConnected(subg.G) == false ){
-			WRITE_ERR("error: is not connected.\n");
+			WRITE_ERR("error: is not connected0.\n");
 			exit(1);
 		}
 
-		// check type.
-		if( type > 0 ){
-			if( isBiconnected(subg.G) == false ){
-				WRITE_ERR("error: is not connected.\n");
-				exit(1);
-			}
-		}
-		if( type > 1 ){
-			if( isTriconnected(subg.G) == false ){
-				WRITE_ERR("error: is not connected.\n");
-				exit(1);
-			}
-		}
 	}
 }
 
