@@ -28,21 +28,21 @@
 // logging.
 #include "logging.h"
 
-struct DGVertex {
+typedef struct DGVertex {
     int idx;
     int pidx;
     int stage;
     int global;
 	google::sparse_hash_set<int> set;
-};
+} DGVertex;
 
-struct TVertex {
+typedef struct TVertex {
     int idx;
-};
+} TVertex;
 
-struct DGEdge {
+typedef struct DGEdge {
     std::vector<int> cuts;
-};
+} DGEdge;
 
 typedef boost::adjacency_list<  // adjacency_list is a template depending on :
     boost::listS,               //  The container used for egdes : here, std::list.
@@ -75,11 +75,11 @@ void two_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent);
 void verify_connected(NodePair np, BundlePair bp, DecompGraph decomp);
 
 // visitor for DFS.
-struct Etmp {
+typedef struct Etmp {
 	int source;
 	int target;
     std::vector<int> cuts;
-};
+} Etmp;
 class MyVisitor : public boost::default_dfs_visitor {
 public:
 
@@ -104,6 +104,7 @@ public:
 
 		// add it.
 		elist->push_back(tmp);
+
 		return;
 	}
 };
