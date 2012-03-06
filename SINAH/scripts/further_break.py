@@ -21,6 +21,9 @@ import os
 
 time_start = time.time()
 
+print "AAAAAAAAAAAA"
+sys.exit()
+
 # logging.
 logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] (%(threadName)-10s) %(message)s', )
 #logging.basicConfig(level=logging.INFO, format='[%(levelname)s] (%(threadName)-10s) %(message)s', )
@@ -329,6 +332,7 @@ for n0 in DG.nodes():
 			fout.write("%i %i\n" % (g.number_of_nodes(), g.number_of_edges()))
 				
 			# write out info.
+			node_cnt = len(g.nodes())
 			for p in sorted(g.nodes()):
 				for q in g.neighbors(p):
 					fout.write("%i " % q)
@@ -344,7 +348,11 @@ for n0 in DG.nodes():
 				
 						
 			# call metis.
-			way_cut = 200
+			way_cut = node_cnt / cutoff
+			
+			print node_cnt, cutoff, way_cut
+			
+			sys.exit()
 			subprocess.call(["gpmetis", "-objtype=vol", "metis.in", str(way_cut)])
 			
 			# open result.
