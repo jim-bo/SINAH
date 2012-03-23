@@ -20,7 +20,7 @@
 #include <boost/graph/visitors.hpp>
 #include <boost/graph/depth_first_search.hpp>
 #include <boost/foreach.hpp>
-
+#include <boost/parameter/name.hpp>
 
 // bundle graph.
 #include "BundleGraph.h"
@@ -30,7 +30,6 @@
 
 typedef struct DGVertex {
     int idx;
-    int pidx;
     int stage;
     int global;
 	google::sparse_hash_set<int> set;
@@ -66,10 +65,12 @@ typedef DecompGraph::edge_descriptor   EdgeID;
 typedef TGraph::vertex_descriptor TVertexID;
 typedef TGraph::edge_descriptor   TEdgeID;
 
+typedef google::sparse_hash_map<int, VertexID> ParentMap;
+
 // decomposition functions.
 void zero_decomp(BundleGraph BG, DecompGraph & DG);
-void one_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent);
-void two_decomp(BundleGraph BG, DecompGraph & DG, VertexID parent);
+void one_decomp(BundleGraph BG, DecompGraph & DG, ParentMap & PMAP, VertexID parent);
+void two_decomp(BundleGraph BG, DecompGraph & DG, ParentMap & PMAP, VertexID parent);
 
 // ancillary functions.
 void verify_connected(NodePair np, BundlePair bp, DecompGraph decomp);
@@ -108,6 +109,5 @@ public:
 		return;
 	}
 };
-
 
 #endif /* DECOMPOSE_H_ */
